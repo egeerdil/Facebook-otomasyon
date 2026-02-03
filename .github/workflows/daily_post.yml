@@ -1,0 +1,45 @@
+name: Daily Facebook Post
+
+on:
+  schedule:
+    # Her gün saat 09:00'da çalışır (UTC)
+    # Türkiye saati için -3 saat yapın (Türkiye UTC+3)
+    # Örnek: Türkiye saati 09:00 için cron: "0 6 * * *"
+    - cron: "0 6 * * *"
+  
+  # Manuel çalıştırma için
+  workflow_dispatch:
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Repository'yi çek
+        uses: actions/checkout@v3
+      
+      - name: 🐍 Python kurulumu
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Bağımlılıkları yükle
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: 📱 Facebook'a post at
+        env:
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          POST_MESSAGE: ${{ secrets.POST_MESSAGE }}
+        run: |
+          python post_to_facebook.py
+      
+      - name: ✅ Başarılı
+        if: success()
+        run: echo "Post başarıyla atıldı!"
+      
+      - name: ❌ Hata
+        if: failure()
+        run: echo "Post atılırken hata oluştu!"
