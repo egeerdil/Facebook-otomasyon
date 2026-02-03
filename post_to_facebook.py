@@ -229,23 +229,33 @@ def main():
         
         if posts:
             today = datetime.now()
-            # Günün index'ine göre post seç
-            day_index = today.timetuple().tm_yday % len(posts)
-            selected_post = posts[day_index]
+            # Günün index'ine göre post seç (yılın kaçıncı günü + saat + dakika)
+            # Bu sayede aynı gün içinde farklı çalıştırmalarda farklı post seçilir
+            day_of_year = today.timetuple().tm_yday
+            hour = today.hour
+            minute = today.minute
+            # Her saat ve dakikaya göre farklı index hesapla
+            index = (day_of_year * 24 * 60 + hour * 60 + minute) % len(posts)
+            selected_post = posts[index]
             image_url = selected_post['url']
             selected_message = selected_post['message']
-            print(f"📸 Toplam {len(posts)} fotoğraf+mesaj var, bugün {day_index + 1}. post seçildi")
+            print(f"📸 Toplam {len(posts)} fotoğraf+mesaj var, {index + 1}. post seçildi")
             print(f"📝 Seçilen mesaj: {selected_message}")
+            print(f"⏰ Seçim zamanı: {today.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Eğer sadece fotoğraf listesi varsa (mesaj yok)
     elif image_urls_str:
         image_urls = [url.strip() for url in image_urls_str.split(',') if url.strip()]
         if image_urls:
             today = datetime.now()
-            # Günün index'ine göre fotoğraf seç (0-364 arası)
-            day_index = today.timetuple().tm_yday % len(image_urls)
-            image_url = image_urls[day_index]
-            print(f"📸 Toplam {len(image_urls)} fotoğraf var, bugün {day_index + 1}. fotoğraf seçildi")
+            # Günün index'ine göre fotoğraf seç (yılın kaçıncı günü + saat + dakika)
+            day_of_year = today.timetuple().tm_yday
+            hour = today.hour
+            minute = today.minute
+            index = (day_of_year * 24 * 60 + hour * 60 + minute) % len(image_urls)
+            image_url = image_urls[index]
+            print(f"📸 Toplam {len(image_urls)} fotoğraf var, {index + 1}. fotoğraf seçildi")
+            print(f"⏰ Seçim zamanı: {today.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Tek fotoğraf varsa
     elif single_image_url:
