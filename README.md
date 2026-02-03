@@ -112,6 +112,12 @@ Bu proje, GitHub Actions kullanarak Facebook Graph API ile otomatik post atma si
      - Value: Özel post mesajınız (boş bırakabilirsiniz, otomatik mesaj kullanılır)
      - **"Add secret"** butonuna tıklayın
    
+   - **Secret 4 (Opsiyonel - Fotoğraf için):**
+     - Name: `POST_IMAGE_URL`
+     - Value: Fotoğraf URL'si (örnek: `https://example.com/image.jpg`)
+     - **"Add secret"** butonuna tıklayın
+     - 📸 **Not:** Fotoğraf eklemek istemiyorsanız bu secret'ı eklemeyin
+   
    ✅ **ÖNEMLİ:** `/me/accounts` adımında aldığınız **"id"** ve **"access_token"** değerlerini buraya ekleyin!
 
 ### 3. Cron Zamanını Ayarlama
@@ -156,6 +162,29 @@ def get_daily_message():
 ```
 
 Veya GitHub Secrets'ta `POST_MESSAGE` değişkenini ayarlayarak sabit bir mesaj kullanabilirsiniz.
+
+## 🖼️ Fotoğraf Ekleme
+
+Postlarınıza fotoğraf eklemek için:
+
+1. **Fotoğrafı internete yükleyin:**
+   - Fotoğrafınızı bir yere yükleyin (örnek: Imgur, Google Drive, kendi web siteniz)
+   - Fotoğrafın **doğrudan erişilebilir URL'sini** alın (örnek: `https://example.com/image.jpg`)
+
+2. **GitHub Secret ekleyin:**
+   - Settings > Secrets and variables > Actions
+   - Yeni secret: `POST_IMAGE_URL`
+   - Value: Fotoğraf URL'si (örnek: `https://i.imgur.com/abc123.jpg`)
+
+3. **Otomatik çalışır:**
+   - Artık her post otomatik olarak bu fotoğrafla birlikte atılacak
+   - Fotoğraf eklemek istemiyorsanız `POST_IMAGE_URL` secret'ını silin veya eklemeyin
+
+**Örnek fotoğraf servisleri:**
+- [Imgur](https://imgur.com) - Ücretsiz, hızlı
+- [Cloudinary](https://cloudinary.com) - Ücretsiz plan mevcut
+- Kendi web siteniz
+- Google Drive (paylaşım linki oluşturun)
 
 ## 🔒 Güvenlik
 

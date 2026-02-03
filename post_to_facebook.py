@@ -10,34 +10,72 @@ import json
 from datetime import datetime
 
 
-def post_to_facebook(page_id, access_token, message):
+def post_to_facebook(page_id, access_token, message, image_url=None):
     """
-    Facebook sayfasına post atar
+    Facebook sayfasına post atar (fotoğraflı veya fotoğrafsız)
     
     Args:
         page_id: Facebook sayfa ID'si
         access_token: Page Access Token
         message: Post mesajı
+        image_url: (Opsiyonel) Fotoğraf URL'si veya dosya yolu
     
     Returns:
         dict: API yanıtı
     """
-    url = f"https://graph.facebook.com/v18.0/{page_id}/feed"
-    
-    payload = {
-        'message': message,
-        'access_token': access_token
-    }
-    
-    try:
-        response = requests.post(url, data=payload)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Hata: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            print(f"Yanıt: {e.response.text}")
-        raise
+    # Eğer fotoğraf varsa /photos endpoint'ini kullan
+    if image_url:
+        url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
+        
+        payload = {
+            'message': message,
+            'access_token': access_token
+        }
+        
+        # URL'den fotoğraf yükleme
+        if image_url.startswith('http://') or image_url.startswith('https://'):
+            payload['url'] = image_url
+        else:
+            # Dosya yolu ise dosyayı yükle
+            with open(image_url, 'rb') as image_file:
+                files = {'source': image_file}
+                try:
+                    response = requests.post(url, data=payload, files=files)
+                    response.raise_for_status()
+                    return response.json()
+                except requests.exceptions.RequestException as e:
+                    print(f"❌ Hata: {e}")
+                    if hasattr(e, 'response') and e.response is not None:
+                        print(f"Yanıt: {e.response.text}")
+                    raise
+        
+        try:
+            response = requests.post(url, data=payload)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Hata: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Yanıt: {e.response.text}")
+            raise
+    else:
+        # Fotoğraf yoksa normal post
+        url = f"https://graph.facebook.com/v18.0/{page_id}/feed"
+        
+        payload = {
+            'message': message,
+            'access_token': access_token
+        }
+        
+        try:
+            response = requests.post(url, data=payload)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Hata: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Yanıt: {e.response.text}")
+            raise
 
 
 def get_daily_message():
@@ -80,11 +118,16 @@ def main():
     if not message:
         message = get_daily_message()
     
+    # Fotoğraf URL'si (opsiyonel)
+    image_url = os.getenv('POST_IMAGE_URL')
+    
     print(f"📝 Post mesajı: {message}")
+    if image_url:
+        print(f"🖼️ Fotoğraf URL'si: {image_url}")
     print(f"📅 Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Facebook'a post at
-    result = post_to_facebook(page_id, access_token, message)
+    result = post_to_facebook(page_id, access_token, message, image_url)
     
     print(f"✅ Post başarıyla atıldı!")
     print(f"📌 Post ID: {result.get('id', 'N/A')}")
