@@ -8,7 +8,9 @@ import os
 import requests
 import json
 import tempfile
+import mimetypes
 from datetime import datetime
+from io import BytesIO
 
 
 def post_to_facebook(page_id, access_token, message, image_url=None):
@@ -33,44 +35,103 @@ def post_to_facebook(page_id, access_token, message, image_url=None):
             'access_token': access_token
         }
         
-        # URL'den fotoğraf yükleme - önce indirip sonra yükle
+        # URL'den fotoğraf yükleme
         if image_url.startswith('http://') or image_url.startswith('https://'):
             try:
-                print(f"📥 Fotoğraf indiriliyor: {image_url}")
-                # Fotoğrafı indir
-                img_response = requests.get(image_url, timeout=30, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                })
-                img_response.raise_for_status()
+                # Önce URL yöntemini dene (daha hızlı)
+                print(f"📥 Fotoğraf URL'si ile yükleniyor: {image_url}")
+                payload_with_url = payload.copy()
+                payload_with_url['url'] = image_url
                 
-                # Geçici dosya oluştur
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-                    tmp_file.write(img_response.content)
-                    tmp_path = tmp_file.name
-                
-                print(f"✅ Fotoğraf indirildi, yükleniyor...")
-                
-                # Dosyayı Facebook'a yükle
-                with open(tmp_path, 'rb') as image_file:
-                    files = {'source': image_file}
+                try:
+                    response = requests.post(url, data=payload_with_url)
+                    response.raise_for_status()
+                    result = response.json()
+                    print(f"✅ Fotoğraf URL yöntemi ile başarıyla yüklendi!")
+                    return result
+                except requests.exceptions.HTTPError as url_error:
+                    # URL yöntemi başarısız oldu, dosya yöntemini dene
+                    print(f"⚠️ URL yöntemi başarısız, dosya yöntemi deneniyor...")
+                    if hasattr(url_error, 'response') and url_error.response is not None:
+                        error_data = url_error.response.json()
+                        if error_data.get('error', {}).get('error_subcode') == 1366046:
+                            # "Can't Read Files" hatası - dosya yöntemini kullan
+                            pass
+                        else:
+                            raise
+                    
+                    # Fotoğrafı indir
+                    print(f"📥 Fotoğraf indiriliyor...")
+                    img_response = requests.get(image_url, timeout=30, headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'image/*'
+                    })
+                    img_response.raise_for_status()
+                    
+                    # Dosya boyutunu kontrol et (10 MB limit)
+                    file_size = len(img_response.content)
+                    if file_size > 10 * 1024 * 1024:
+                        raise ValueError(f"Fotoğraf çok büyük: {file_size / (1024*1024):.2f} MB (Maksimum: 10 MB)")
+                    
+                    print(f"✅ Fotoğraf indirildi ({file_size / 1024:.2f} KB)")
+                    
+                    # Content-Type'ı belirle
+                    content_type = img_response.headers.get('Content-Type', '')
+                    if not content_type or not content_type.startswith('image/'):
+                        # URL'den dosya uzantısını al
+                        ext = os.path.splitext(image_url.split('?')[0])[1].lower()
+                        if ext in ['.jpg', '.jpeg']:
+                            content_type = 'image/jpeg'
+                        elif ext == '.png':
+                            content_type = 'image/png'
+                        elif ext == '.gif':
+                            content_type = 'image/gif'
+                        elif ext == '.webp':
+                            content_type = 'image/webp'
+                        else:
+                            # İçeriği kontrol et
+                            if img_response.content[:4] == b'\xff\xd8\xff\xe0':
+                                content_type = 'image/jpeg'
+                            elif img_response.content[:8] == b'\x89PNG\r\n\x1a\n':
+                                content_type = 'image/png'
+                            else:
+                                content_type = 'image/jpeg'  # Varsayılan
+                    
+                    print(f"📋 Dosya tipi: {content_type}")
+                    
+                    # Dosya adını belirle
+                    filename = 'image.jpg'
+                    if content_type == 'image/png':
+                        filename = 'image.png'
+                    elif content_type == 'image/gif':
+                        filename = 'image.gif'
+                    elif content_type == 'image/webp':
+                        filename = 'image.webp'
+                    
+                    # Dosyayı BytesIO ile yükle
+                    image_data = BytesIO(img_response.content)
+                    image_data.seek(0)
+                    
+                    # Facebook'a yükle
+                    files = {
+                        'source': (filename, image_data, content_type)
+                    }
+                    
+                    print(f"📤 Facebook'a dosya olarak yükleniyor...")
                     response = requests.post(url, data=payload, files=files)
                     response.raise_for_status()
                     result = response.json()
-                
-                # Geçici dosyayı sil
-                os.unlink(tmp_path)
-                return result
+                    
+                    print(f"✅ Fotoğraf başarıyla yüklendi!")
+                    return result
                 
             except requests.exceptions.RequestException as e:
                 print(f"❌ Fotoğraf indirme/yükleme hatası: {e}")
                 if hasattr(e, 'response') and e.response is not None:
                     print(f"Yanıt: {e.response.text}")
-                # Geçici dosyayı temizle
-                if 'tmp_path' in locals():
-                    try:
-                        os.unlink(tmp_path)
-                    except:
-                        pass
+                raise
+            except Exception as e:
+                print(f"❌ Beklenmeyen hata: {e}")
                 raise
         else:
             # Dosya yolu ise dosyayı yükle

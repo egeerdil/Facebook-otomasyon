@@ -15,7 +15,14 @@ Fotoğrafınızı internete yüklemek için birkaç seçenek:
 5. **"Copy link"** seçeneğini seçin
 6. URL'yi kopyalayın (örnek: `https://i.imgur.com/abc123.jpg`)
 
-**ÖNEMLİ:** URL'nin sonunda `.jpg`, `.png` gibi uzantı olmalı!
+**ÖNEMLİ:** 
+- URL'nin sonunda `.jpg`, `.png` gibi uzantı olmalı!
+- **Direkt görsel linkini** alın (örnek: `https://i.imgur.com/abc123.jpg`)
+- Sayfa linkini değil, görsel linkini kullanın!
+
+**Imgur'da doğru linki almak için:**
+- Fotoğrafa sağ tıklayın > **"Copy image address"** veya
+- Fotoğrafa tıklayın, URL çubuğundaki linki kopyalayın (`.jpg` ile biten)
 
 #### Seçenek B: Google Drive
 
