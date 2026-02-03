@@ -7,6 +7,7 @@ GitHub Actions ile çalışacak şekilde tasarlandı
 import os
 import requests
 import json
+import tempfile
 from datetime import datetime
 
 
@@ -32,9 +33,45 @@ def post_to_facebook(page_id, access_token, message, image_url=None):
             'access_token': access_token
         }
         
-        # URL'den fotoğraf yükleme
+        # URL'den fotoğraf yükleme - önce indirip sonra yükle
         if image_url.startswith('http://') or image_url.startswith('https://'):
-            payload['url'] = image_url
+            try:
+                print(f"📥 Fotoğraf indiriliyor: {image_url}")
+                # Fotoğrafı indir
+                img_response = requests.get(image_url, timeout=30, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
+                img_response.raise_for_status()
+                
+                # Geçici dosya oluştur
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+                    tmp_file.write(img_response.content)
+                    tmp_path = tmp_file.name
+                
+                print(f"✅ Fotoğraf indirildi, yükleniyor...")
+                
+                # Dosyayı Facebook'a yükle
+                with open(tmp_path, 'rb') as image_file:
+                    files = {'source': image_file}
+                    response = requests.post(url, data=payload, files=files)
+                    response.raise_for_status()
+                    result = response.json()
+                
+                # Geçici dosyayı sil
+                os.unlink(tmp_path)
+                return result
+                
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Fotoğraf indirme/yükleme hatası: {e}")
+                if hasattr(e, 'response') and e.response is not None:
+                    print(f"Yanıt: {e.response.text}")
+                # Geçici dosyayı temizle
+                if 'tmp_path' in locals():
+                    try:
+                        os.unlink(tmp_path)
+                    except:
+                        pass
+                raise
         else:
             # Dosya yolu ise dosyayı yükle
             with open(image_url, 'rb') as image_file:
@@ -48,16 +85,6 @@ def post_to_facebook(page_id, access_token, message, image_url=None):
                     if hasattr(e, 'response') and e.response is not None:
                         print(f"Yanıt: {e.response.text}")
                     raise
-        
-        try:
-            response = requests.post(url, data=payload)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Hata: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                print(f"Yanıt: {e.response.text}")
-            raise
     else:
         # Fotoğraf yoksa normal post
         url = f"https://graph.facebook.com/v18.0/{page_id}/feed"
