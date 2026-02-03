@@ -34,6 +34,8 @@ jobs:
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           POST_MESSAGE: ${{ secrets.POST_MESSAGE }}
           POST_IMAGE_URL: ${{ secrets.POST_IMAGE_URL }}
+          POST_IMAGE_URLS: ${{ secrets.POST_IMAGE_URLS }}
+          POST_IMAGE_POSTS: ${{ secrets.POST_IMAGE_POSTS }}
         run: |
           python post_to_facebook.py
       

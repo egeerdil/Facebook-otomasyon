@@ -206,16 +206,58 @@ def main():
     if not message:
         message = get_daily_message()
     
-    # Fotoğraf URL'si (opsiyonel)
-    image_url = os.getenv('POST_IMAGE_URL')
+    # Fotoğraf URL'si ve mesajı (opsiyonel)
+    # Önce çoklu fotoğraf+mesaj listesini kontrol et
+    image_posts_str = os.getenv('POST_IMAGE_POSTS')  # Format: "URL|MESAJ,URL|MESAJ"
+    image_urls_str = os.getenv('POST_IMAGE_URLS')  # Virgülle ayrılmış sadece URL listesi
+    single_image_url = os.getenv('POST_IMAGE_URL')  # Tek fotoğraf
     
-    print(f"📝 Post mesajı: {message}")
+    image_url = None
+    selected_message = message  # Varsayılan olarak mevcut mesajı kullan
+    
+    # Eğer fotoğraf+mesaj eşleştirmesi varsa (en öncelikli)
+    if image_posts_str:
+        # Format: "URL1|MESAJ1,URL2|MESAJ2,..."
+        posts = []
+        for post_str in image_posts_str.split(','):
+            post_str = post_str.strip()
+            if '|' in post_str:
+                parts = post_str.split('|', 1)  # İlk | karakterinden böl
+                img_url = parts[0].strip()
+                post_msg = parts[1].strip() if len(parts) > 1 else message
+                posts.append({'url': img_url, 'message': post_msg})
+        
+        if posts:
+            today = datetime.now()
+            # Günün index'ine göre post seç
+            day_index = today.timetuple().tm_yday % len(posts)
+            selected_post = posts[day_index]
+            image_url = selected_post['url']
+            selected_message = selected_post['message']
+            print(f"📸 Toplam {len(posts)} fotoğraf+mesaj var, bugün {day_index + 1}. post seçildi")
+            print(f"📝 Seçilen mesaj: {selected_message}")
+    
+    # Eğer sadece fotoğraf listesi varsa (mesaj yok)
+    elif image_urls_str:
+        image_urls = [url.strip() for url in image_urls_str.split(',') if url.strip()]
+        if image_urls:
+            today = datetime.now()
+            # Günün index'ine göre fotoğraf seç (0-364 arası)
+            day_index = today.timetuple().tm_yday % len(image_urls)
+            image_url = image_urls[day_index]
+            print(f"📸 Toplam {len(image_urls)} fotoğraf var, bugün {day_index + 1}. fotoğraf seçildi")
+    
+    # Tek fotoğraf varsa
+    elif single_image_url:
+        image_url = single_image_url
+    
+    print(f"📝 Post mesajı: {selected_message}")
     if image_url:
         print(f"🖼️ Fotoğraf URL'si: {image_url}")
     print(f"📅 Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Facebook'a post at
-    result = post_to_facebook(page_id, access_token, message, image_url)
+    result = post_to_facebook(page_id, access_token, selected_message, image_url)
     
     print(f"✅ Post başarıyla atıldı!")
     print(f"📌 Post ID: {result.get('id', 'N/A')}")
