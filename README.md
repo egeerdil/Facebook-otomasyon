@@ -19,9 +19,12 @@ Bu proje, GitHub Actions kullanarak Facebook Graph API ile otomatik post atma si
 
 1. **Facebook Developers** hesabı oluşturun: https://developers.facebook.com/
 2. Yeni bir **App** oluşturun
-3. **Graph API Explorer**'a gidin: https://developers.facebook.com/tools/explorer/
-4. App'inizi seçin
-5. **User Token (Kullanıcı Token'ı) alın:**
+3. **Instagram Graph API** ürününü ekleyin (Instagram için gerekli):
+   - App Dashboard > **Products** > **"+"** butonu
+   - **"Instagram Graph API"** ürününü bulun ve **"Set Up"** yapın
+4. **Graph API Explorer**'a gidin: https://developers.facebook.com/tools/explorer/
+5. App'inizi seçin
+6. **User Token (Kullanıcı Token'ı) alın:**
    - Sağ üstteki **"Get Token"** butonuna tıklayın
    - **"Get User Access Token"** seçin
    - **⚠️ ÖNEMLİ - İZİN HATASI ALIRSANIZ:**
@@ -35,6 +38,7 @@ Bu proje, GitHub Actions kullanarak Facebook Graph API ile otomatik post atma si
    - Çıkan token'ı kopyalayın (bu geçici bir token, yaklaşık 1-2 saat geçerli)
    - 📝 **ÖNEMLİ:** Bu token'ı bir not defterine veya metin dosyasına kaydedin (şimdilik geçici olarak saklayın)
    - ✅ **Not:** İzin seçmeye gerek yok! Bir sonraki adımda (`/me/accounts`) sayfa token'ı alırken gerekli tüm izinler otomatik olarak eklenir
+   - 🔐 **Instagram için:** Eğer Instagram'a da post atacaksanız, token'da `instagram_content_publish` izni de olmalı (App Review gerekebilir)
    
 6. **User Token'ı Page Token'a çevirin (ASIL İHTİYACINIZ OLAN TOKEN):**
    

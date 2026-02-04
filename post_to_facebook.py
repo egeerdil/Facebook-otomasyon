@@ -13,6 +13,103 @@ from datetime import datetime
 from io import BytesIO
 
 
+def post_to_instagram(instagram_account_id, access_token, message, image_url):
+    """
+    Instagram Business Account'a post atar
+    
+    Args:
+        instagram_account_id: Instagram Business Account ID
+        access_token: Instagram Access Token (Facebook Page Token ile aynı)
+        message: Post mesajı
+        image_url: Fotoğraf URL'si (ZORUNLU)
+    
+    Returns:
+        dict: API yanıtı
+    """
+    if not image_url:
+        raise ValueError("Instagram için fotoğraf zorunludur!")
+    
+    # Önce fotoğrafı yükle
+    print(f"📥 Instagram için fotoğraf indiriliyor: {image_url}")
+    try:
+        img_response = requests.get(image_url, timeout=30, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'image/*'
+        })
+        img_response.raise_for_status()
+        
+        # Dosya boyutunu kontrol et (8 MB limit - Instagram için)
+        file_size = len(img_response.content)
+        if file_size > 8 * 1024 * 1024:
+            raise ValueError(f"Fotoğraf çok büyük: {file_size / (1024*1024):.2f} MB (Maksimum: 8 MB)")
+        
+        print(f"✅ Fotoğraf indirildi ({file_size / 1024:.2f} KB)")
+        
+        # Content-Type'ı belirle
+        content_type = img_response.headers.get('Content-Type', '')
+        if not content_type or not content_type.startswith('image/'):
+            ext = os.path.splitext(image_url.split('?')[0])[1].lower()
+            if ext in ['.jpg', '.jpeg']:
+                content_type = 'image/jpeg'
+            elif ext == '.png':
+                content_type = 'image/png'
+            else:
+                content_type = 'image/jpeg'
+        
+        # Dosya adını belirle
+        filename = 'image.jpg'
+        if content_type == 'image/png':
+            filename = 'image.png'
+        
+        # Fotoğrafı Instagram'a yükle
+        image_data = BytesIO(img_response.content)
+        image_data.seek(0)
+        
+        # Container oluştur
+        container_url = f"https://graph.facebook.com/v18.0/{instagram_account_id}/media"
+        container_payload = {
+            'image_url': image_url,
+            'caption': message,
+            'access_token': access_token
+        }
+        
+        print(f"📤 Instagram container oluşturuluyor...")
+        container_response = requests.post(container_url, data=container_payload)
+        container_response.raise_for_status()
+        container_result = container_response.json()
+        creation_id = container_result.get('id')
+        
+        if not creation_id:
+            raise ValueError(f"Container oluşturulamadı: {container_result}")
+        
+        print(f"✅ Container oluşturuldu: {creation_id}")
+        print(f"⏳ Instagram post yayınlanıyor (birkaç saniye sürebilir)...")
+        
+        # Post'u yayınla
+        publish_url = f"https://graph.facebook.com/v18.0/{instagram_account_id}/media_publish"
+        publish_payload = {
+            'creation_id': creation_id,
+            'access_token': access_token
+        }
+        
+        # Instagram'ın işlemesi için kısa bir bekleme
+        import time
+        time.sleep(2)
+        
+        publish_response = requests.post(publish_url, data=publish_payload)
+        publish_response.raise_for_status()
+        result = publish_response.json()
+        
+        print(f"✅ Instagram post başarıyla yayınlandı!")
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Instagram post hatası: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"Yanıt: {e.response.text}")
+        raise
+
+
 def post_to_facebook(page_id, access_token, message, image_url=None):
     """
     Facebook sayfasına post atar (fotoğraflı veya fotoğrafsız)
@@ -266,14 +363,42 @@ def main():
         print(f"🖼️ Fotoğraf URL'si: {image_url}")
     print(f"📅 Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
+    results = {}
+    
     # Facebook'a post at
-    result = post_to_facebook(page_id, access_token, selected_message, image_url)
+    try:
+        print("\n" + "="*60)
+        print("📱 FACEBOOK POST")
+        print("="*60)
+        fb_result = post_to_facebook(page_id, access_token, selected_message, image_url)
+        results['facebook'] = fb_result
+        print(f"✅ Facebook post başarıyla atıldı!")
+        print(f"📌 Post ID: {fb_result.get('id', 'N/A')}")
+        print(f"🔗 Post URL: https://facebook.com/{fb_result.get('id', '')}")
+    except Exception as e:
+        print(f"❌ Facebook post hatası: {e}")
+        results['facebook'] = {'error': str(e)}
     
-    print(f"✅ Post başarıyla atıldı!")
-    print(f"📌 Post ID: {result.get('id', 'N/A')}")
-    print(f"🔗 Post URL: https://facebook.com/{result.get('id', '')}")
+    # Instagram'a post at (eğer fotoğraf varsa ve Instagram ID verilmişse)
+    instagram_account_id = os.getenv('INSTAGRAM_ACCOUNT_ID')
+    if instagram_account_id and image_url:
+        try:
+            print("\n" + "="*60)
+            print("📸 INSTAGRAM POST")
+            print("="*60)
+            ig_result = post_to_instagram(instagram_account_id, access_token, selected_message, image_url)
+            results['instagram'] = ig_result
+            print(f"✅ Instagram post başarıyla atıldı!")
+            print(f"📌 Post ID: {ig_result.get('id', 'N/A')}")
+        except Exception as e:
+            print(f"❌ Instagram post hatası: {e}")
+            results['instagram'] = {'error': str(e)}
+    elif not image_url:
+        print("\n⚠️ Instagram için fotoğraf gerekli, atlanıyor...")
+    elif not instagram_account_id:
+        print("\n⚠️ INSTAGRAM_ACCOUNT_ID bulunamadı, Instagram post atlanıyor...")
     
-    return result
+    return results
 
 
 if __name__ == "__main__":
